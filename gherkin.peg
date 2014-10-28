@@ -6,7 +6,6 @@ type gherkinPeg Peg {
   buf1 string
   buf2 string
   buftags []string
-  bufcmt string
 }
 
 Begin <- 
@@ -14,53 +13,52 @@ Begin <-
   OS !.
 
 Feature <- 
-  Tags 'Feature:' WS* <UntilLineEnd?>{{buf1}} <>{{buf2}} LineEnd
+  Tags 'Feature:' <UntilLineEnd?>{{buf1}} <>{{buf2}} LineEnd
   (WS* !('@' Word / 'Background:' / 'Scenario:' / 'Scenario Outline:') <UntilLineEnd?>{{++buf2}} LineEnd { p.buf2 = p.buf2 + "\n" })*
   { p.beginFeature(trimWS(p.buf1), trimWSML(p.buf2), p.buftags); p.buftags = nil }
   ( Background / Scenario / Outline / BlankLine )*
   { p.endFeature() }
 
 Background <- 
-  Tags 'Background:' WS* <UntilLineEnd?>{{buf1}} LineEnd
+  Tags 'Background:' <UntilLineEnd?>{{buf1}} LineEnd
   { p.beginBackground(trimWS(p.buf1), p.buftags); p.buftags = nil }
   (Step / BlankLine)*
   { p.endBackground() } 
 
 Scenario <- 
-  Tags 'Scenario:' WS* <UntilLineEnd?>{{buf1}} LineEnd
+  Tags 'Scenario:' <UntilLineEnd?>{{buf1}} LineEnd
   { p.beginScenario(trimWS(p.buf1), p.buftags); p.buftags = nil }
   (Step / BlankLine)*
   { p.endScenario() }
 
 Outline <- 
-  Tags 'Scenario Outline:' WS* <UntilLineEnd?>{{buf1}} LineEnd
+  Tags 'Scenario Outline:' <UntilLineEnd?>{{buf1}} LineEnd
   { p.beginOutline(trimWS(p.buf1), p.buftags); p.buftags = nil } 
   (Step / BlankLine)*
   OutlineExamples?
   { p.endOutline() } 
 
 OutlineExamples <-
-  OS 'Examples:' LineEnd
+  OS 'Examples:' WS* LineEnd
   { p.beginOutlineExamples() } 
   Table?
   { p.endOutlineExamples() } 
 
 Step <- 
   WS* <('Given' / 'When' / 'Then' / 'And' / 'Or' / 'But')>{{buf1}}
-  WS* <UntilLineEnd>{{buf2}} LineEnd
+  <UntilLineEnd>{{buf2}} LineEnd
   { p.beginStep(trimWS(p.buf1), trimWS(p.buf2)) } 
   StepArgument?
   { p.endStep() }
 
-StepArgument
-  <- Table
-   / PyString
+StepArgument <-
+  Table / PyString
 
 PyString <-
   (WS* NL)* <WS*> PyStringQuote NL
   { p.beginPyString(buffer[begin:end]) }
   (!(WS* PyStringQuote) PyStringLine)*
-  WS* PyStringQuote LineEnd
+  WS* PyStringQuote WS* LineEnd
   { p.endPyString() }
 
 PyStringQuote <- '\"' '\"' '\"'
@@ -76,7 +74,7 @@ Table <-
 
 TableRow <-
   { p.beginTableRow() }
-  OS '|' TableCell+ LineEnd
+  OS '|' TableCell+ WS* LineEnd
   { p.endTableRow() }
 
 TableCell <-
@@ -101,14 +99,14 @@ UntilLineEnd <-
   ( EscapedChar / [^\n\\"#]+ / QuotedString )+
 
 LineEnd <- 
-  WS* LineComment? NL
+  LineComment? NL
 
 LineComment <- 
   '#' < [^\n]* >
-  { p.bufcmt = buffer[begin:end]; p.triggerComment(p.bufcmt) }
+  { p.triggerComment(buffer[begin:end]) }
 
 BlankLine <- 
-  ( WS LineEnd / ( LineComment? NL ) )
+  WS* LineEnd
   { p.triggerBlankLine() }
 
 
@@ -118,5 +116,5 @@ WS <- (' ' / '\t')
 
 UntilNL <- [^\n]*
 
-NL <- ('\n' / '\r' / '\r\n')
+NL <- '\r'? '\n'
 
